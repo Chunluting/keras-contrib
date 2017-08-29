@@ -36,7 +36,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/titu1994/DenseNet/releases/download
 def DenseNet(input_shape=None, depth=40, nb_dense_block=3, growth_rate=12, nb_filter=16, nb_layers_per_block=-1,
              bottleneck=False, reduction=0.0, dropout_rate=0.0, weight_decay=1E-4,
              include_top=True, weights='cifar10', input_tensor=None,
-             classes=10, activation='softmax'):
+             classes=10, activation='softmax', labels=None):
     '''Instantiate the DenseNet architecture,
         optionally loading weights pre-trained
         on CIFAR-10. Note that when using TensorFlow,
@@ -82,6 +82,8 @@ def DenseNet(input_shape=None, depth=40, nb_dense_block=3, growth_rate=12, nb_fi
                 if no `weights` argument is specified.
             activation: Type of activation at the top layer. Can be one of 'softmax' or 'sigmoid'.
                 Note that if sigmoid is used, classes must be 1.
+            labels: An optional input tensor that will generate label data.
+                Useful for yield ops in TensorFlow and TFRecord datasets.
         # Returns
             A Keras model instance.
         '''
@@ -127,7 +129,7 @@ def DenseNet(input_shape=None, depth=40, nb_dense_block=3, growth_rate=12, nb_fi
     else:
         inputs = img_input
     # Create model.
-    model = Model(inputs, x, name='densenet')
+    model = Model(inputs, x, name='densenet', labels=labels)
 
     # load weights
     if weights == 'cifar10':
@@ -178,7 +180,7 @@ def DenseNet(input_shape=None, depth=40, nb_dense_block=3, growth_rate=12, nb_fi
 def DenseNetFCN(input_shape, nb_dense_block=5, growth_rate=16, nb_layers_per_block=4,
                 reduction=0.0, dropout_rate=0.0, weight_decay=1E-4, init_conv_filters=48,
                 include_top=True, weights=None, input_tensor=None, classes=1, activation='softmax',
-                upsampling_conv=128, upsampling_type='deconv'):
+                upsampling_conv=128, upsampling_type='deconv', labels=None):
     '''Instantiate the DenseNet FCN architecture.
         Note that when using TensorFlow,
         for best performance you should set
@@ -222,6 +224,8 @@ def DenseNetFCN(input_shape, nb_dense_block=5, growth_rate=16, nb_layers_per_blo
                 computation of output shape in the case of Deconvolution2D layers.
                 Parameter will be removed in next iteration of Keras, which infers
                 output shape of deconvolution layers automatically.
+            labels: An optional input tensor that will generate label data.
+                Useful for yield ops in TensorFlow and TFRecord datasets.
         # Returns
             A Keras model instance.
     '''
@@ -292,7 +296,7 @@ def DenseNetFCN(input_shape, nb_dense_block=5, growth_rate=16, nb_layers_per_blo
     else:
         inputs = img_input
     # Create model.
-    model = Model(inputs, x, name='fcn-densenet')
+    model = Model(inputs, x, name='fcn-densenet', labels=labels)
 
     return model
 

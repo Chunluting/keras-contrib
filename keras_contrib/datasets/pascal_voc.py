@@ -242,13 +242,15 @@ def get_pascal_segmentation_image_annotation_filenames_pairs(pascal_root):
     pascal_image_names = readlines_with_strip_array_version(
         pascal_images_lists_txts)
 
-    images_full_names = add_full_path_and_extention_to_filenames_array_version(pascal_image_names,
-                                                                               pascal_images_folder,
-                                                                               images_extention)
+    images_full_names = add_full_path_and_extention_to_filenames_array_version(
+        pascal_image_names,
+        pascal_images_folder,
+        images_extention)
 
-    annotations_full_names = add_full_path_and_extention_to_filenames_array_version(pascal_image_names,
-                                                                                    pascal_class_annotations_folder,
-                                                                                    annotations_extention)
+    annotations_full_names = add_full_path_and_extention_to_filenames_array_version(
+        pascal_image_names,
+        pascal_class_annotations_folder,
+        annotations_extention)
 
     # Combine so that we have [(images full filenames, annotation full names), .. ]
     # where each element in the array represent train, val, trainval sets.
@@ -771,20 +773,20 @@ def pascal_voc_setup(filenames, dataset_path, pascal_root,
                                  combined_imageset_val_txt,
                                  combined_annotations_path)
 
-
-@data_pascal_voc.automain
-def main(filenames, dataset_path, pascal_root,
-         pascal_berkeley_root, dataset_root,
-         voc_data_subset_mode,
-         urls, md5s,
-         combined_imageset_train_txt,
-         combined_imageset_val_txt,
-         combined_annotations_path):
-    voc_config()
-    pascal_voc_setup(filenames, dataset_path, pascal_root,
-                     pascal_berkeley_root, dataset_root,
-                     voc_data_subset_mode,
-                     urls, md5s,
-                     combined_imageset_train_txt,
-                     combined_imageset_val_txt,
-                     combined_annotations_path)
+if __name__ == "__main__":
+    @data_pascal_voc.automain
+    def main(filenames, dataset_path, pascal_root,
+             pascal_berkeley_root, dataset_root,
+             voc_data_subset_mode,
+             urls, md5s,
+             combined_imageset_train_txt,
+             combined_imageset_val_txt,
+             combined_annotations_path):
+        voc_config()
+        pascal_voc_setup(filenames, dataset_path, pascal_root,
+                         pascal_berkeley_root, dataset_root,
+                         voc_data_subset_mode,
+                         urls, md5s,
+                         combined_imageset_train_txt,
+                         combined_imageset_val_txt,
+                         combined_annotations_path)
