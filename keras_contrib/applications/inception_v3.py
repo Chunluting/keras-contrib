@@ -9,7 +9,6 @@ from keras import backend as K
 
 from sklearn.metrics import log_loss
 
-from load_cifar10 import load_cifar10_data
 
 def conv2d_bn(x, nb_filter, nb_row, nb_col,
               border_mode='same', subsample=(1, 1),
@@ -36,15 +35,15 @@ def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
     """
     Inception-V3 Model for Keras
 
-    Model Schema is based on 
+    Model Schema is based on
     https://github.com/fchollet/deep-learning-models/blob/master/inception_v3.py
 
-    ImageNet Pretrained Weights 
+    ImageNet Pretrained Weights
     https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_th_dim_ordering_th_kernels.h5
 
     Parameters:
       img_rows, img_cols - resolution of inputs
-      channel - 1 for grayscale, 3 for color 
+      channel - 1 for grayscale, 3 for color
       num_classes - number of class labels for our classification task
     """
     channel_axis = 1
@@ -197,7 +196,7 @@ def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
     # Create model
     model = Model(img_input, x_fc)
 
-    # Load ImageNet pre-trained data 
+    # Load ImageNet pre-trained data
     model.load_weights('imagenet_models/inception_v3_weights_th_dim_ordering_th_kernels.h5')
 
     # Truncate and replace softmax layer for transfer learning
@@ -214,16 +213,17 @@ def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
     sgd = SGD(lr=1e-3, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
 
-    return model 
+    return model
 
 if __name__ == '__main__':
 
+    from load_cifar10 import load_cifar10_data
     # Example to fine-tune on 3000 samples from Cifar10
 
     img_rows, img_cols = 299, 299 # Resolution of inputs
     channel = 3
-    num_classes = 10 
-    batch_size = 16 
+    num_classes = 10
+    batch_size = 16
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset

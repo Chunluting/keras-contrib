@@ -7,22 +7,20 @@ from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import AveragePooling2D, GlobalAveragePooling2D, MaxPooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
+from ..layers.pooling import Scale
 import keras.backend as K
 
 from sklearn.metrics import log_loss
 
-from custom_layers.scale_layer import Scale
-
-from load_cifar10 import load_cifar10_data
 
 def densenet161_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth_rate=48, nb_filter=96, reduction=0.5, dropout_rate=0.0, weight_decay=1e-4, num_classes=None):
     '''
     DenseNet 161 Model for Keras
 
-    Model Schema is based on 
+    Model Schema is based on
     https://github.com/flyyufelix/DenseNet-Keras
 
-    ImageNet Pretrained Weights 
+    ImageNet Pretrained Weights
     Theano: https://drive.google.com/open?id=0Byy2AcGyEVxfVnlCMlBGTDR3RGs
     TensorFlow: https://drive.google.com/open?id=0Byy2AcGyEVxfUDZwVjU2cFNidTA
 
@@ -115,7 +113,7 @@ def densenet161_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth
 def conv_block(x, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4):
     '''Apply BatchNorm, Relu, bottleneck 1x1 Conv2D, 3x3 Conv2D, and option dropout
         # Arguments
-            x: input tensor 
+            x: input tensor
             stage: index for dense block
             branch: layer index within each dense block
             nb_filter: number of filters
@@ -127,7 +125,7 @@ def conv_block(x, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4
     relu_name_base = 'relu' + str(stage) + '_' + str(branch)
 
     # 1x1 Convolution (Bottleneck layer)
-    inter_channel = nb_filter * 4  
+    inter_channel = nb_filter * 4
     x = BatchNormalization(epsilon=eps, axis=concat_axis, name=conv_name_base+'_x1_bn')(x)
     x = Scale(axis=concat_axis, name=conv_name_base+'_x1_scale')(x)
     x = Activation('relu', name=relu_name_base+'_x1')(x)
@@ -150,7 +148,7 @@ def conv_block(x, stage, branch, nb_filter, dropout_rate=None, weight_decay=1e-4
 
 
 def transition_block(x, stage, nb_filter, compression=1.0, dropout_rate=None, weight_decay=1E-4):
-    ''' Apply BatchNorm, 1x1 Convolution, averagePooling, optional compression, dropout 
+    ''' Apply BatchNorm, 1x1 Convolution, averagePooling, optional compression, dropout
         # Arguments
             x: input tensor
             stage: index for dense block
@@ -163,7 +161,7 @@ def transition_block(x, stage, nb_filter, compression=1.0, dropout_rate=None, we
     eps = 1.1e-5
     conv_name_base = 'conv' + str(stage) + '_blk'
     relu_name_base = 'relu' + str(stage) + '_blk'
-    pool_name_base = 'pool' + str(stage) 
+    pool_name_base = 'pool' + str(stage)
 
     x = BatchNormalization(epsilon=eps, axis=concat_axis, name=conv_name_base+'_bn')(x)
     x = Scale(axis=concat_axis, name=conv_name_base+'_scale')(x)
@@ -206,11 +204,12 @@ def dense_block(x, stage, nb_layers, nb_filter, growth_rate, dropout_rate=None, 
 
 if __name__ == '__main__':
 
+    from load_cifar10 import load_cifar10_data
     # Example to fine-tune on 3000 samples from Cifar10
 
     img_rows, img_cols = 224, 224 # Resolution of inputs
     channel = 3
-    num_classes = 10 
+    num_classes = 10
     batch_size = 8
     nb_epoch = 10
 

@@ -9,12 +9,11 @@ from keras import backend as K
 
 from sklearn.metrics import log_loss
 
-from load_cifar10 import load_cifar10_data
 
 def conv2d_bn(x, nb_filter, nb_row, nb_col,
               border_mode='same', subsample=(1, 1), bias=False):
     """
-    Utility function to apply conv + BN. 
+    Utility function to apply conv + BN.
     (Slightly modified from https://github.com/fchollet/keras/blob/master/keras/applications/inception_v3.py)
     """
     if K.image_dim_ordering() == "th":
@@ -28,6 +27,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
     x = BatchNormalization(axis=channel_axis)(x)
     x = Activation('relu')(x)
     return x
+
 
 def block_inception_a(input):
     if K.image_dim_ordering() == "th":
@@ -207,13 +207,13 @@ def inception_v4_model(img_rows, img_cols, color_type=1, num_classeses=None, dro
     Model Schema is based on
     https://github.com/kentsommer/keras-inceptionV4
 
-    ImageNet Pretrained Weights 
+    ImageNet Pretrained Weights
     Theano: https://github.com/kentsommer/keras-inceptionV4/releases/download/2.0/inception-v4_weights_th_dim_ordering_th_kernels.h5
     TensorFlow: https://github.com/kentsommer/keras-inceptionV4/releases/download/2.0/inception-v4_weights_tf_dim_ordering_tf_kernels.h5
 
     Parameters:
       img_rows, img_cols - resolution of inputs
-      channel - 1 for grayscale, 3 for color 
+      channel - 1 for grayscale, 3 for color
       num_classes - number of class labels for our classification task
     '''
 
@@ -268,12 +268,13 @@ def inception_v4_model(img_rows, img_cols, color_type=1, num_classeses=None, dro
 
 if __name__ == '__main__':
 
+    from load_cifar10 import load_cifar10_data
     # Example to fine-tune on 3000 samples from Cifar10
 
     img_rows, img_cols = 299, 299 # Resolution of inputs
     channel = 3
-    num_classes = 10 
-    batch_size = 16 
+    num_classes = 10
+    batch_size = 16
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset

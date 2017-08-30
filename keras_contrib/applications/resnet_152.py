@@ -11,10 +11,9 @@ from sklearn.metrics import log_loss
 
 from custom_layers.scale_layer import Scale
 
-from load_cifar10 import load_cifar10_data
-
 import sys
 sys.setrecursionlimit(3000)
+
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
     '''The identity_block is the block that has no conv layer at shortcut
@@ -50,6 +49,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     x = merge([x, input_tensor], mode='sum', name='res' + str(stage) + block)
     x = Activation('relu', name='res' + str(stage) + block + '_relu')(x)
     return x
+
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
     '''conv_block is the block that has a conv layer at shortcut
@@ -94,6 +94,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
     x = Activation('relu', name='res' + str(stage) + block + '_relu')(x)
     return x
 
+
 def resnet152_model(img_rows, img_cols, color_type=1, num_classes=None):
     """
     Resnet 152 Model for Keras
@@ -101,13 +102,13 @@ def resnet152_model(img_rows, img_cols, color_type=1, num_classes=None):
     Model Schema and layer naming follow that of the original Caffe implementation
     https://github.com/KaimingHe/deep-residual-networks
 
-    ImageNet Pretrained Weights 
+    ImageNet Pretrained Weights
     Theano: https://drive.google.com/file/d/0Byy2AcGyEVxfZHhUT3lWVWxRN28/view?usp=sharing
     TensorFlow: https://drive.google.com/file/d/0Byy2AcGyEVxfeXExMzNNOHpEODg/view?usp=sharing
 
     Parameters:
       img_rows, img_cols - resolution of inputs
-      channel - 1 for grayscale, 3 for color 
+      channel - 1 for grayscale, 3 for color
       num_classes - number of class labels for our classification task
     """
     eps = 1.1e-5
@@ -176,11 +177,12 @@ def resnet152_model(img_rows, img_cols, color_type=1, num_classes=None):
 
 if __name__ == '__main__':
 
+    from load_cifar10 import load_cifar10_data
     # Example to fine-tune on 3000 samples from Cifar10
 
-    img_rows, img_cols = 224, 224 # Resolution of inputs
+    img_rows, img_cols = 224, 224  # Resolution of inputs
     channel = 3
-    num_classes = 10 
+    num_classes = 10
     batch_size = 8
     nb_epoch = 10
 

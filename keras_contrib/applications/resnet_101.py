@@ -11,10 +11,9 @@ from sklearn.metrics import log_loss
 
 from custom_layers.scale_layer import Scale
 
-from load_cifar10 import load_cifar10_data
-
 import sys
 sys.setrecursionlimit(3000)
+
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
     '''The identity_block is the block that has no conv layer at shortcut
@@ -101,13 +100,13 @@ def resnet101_model(img_rows, img_cols, color_type=1, num_classes=None):
     Model Schema and layer naming follow that of the original Caffe implementation
     https://github.com/KaimingHe/deep-residual-networks
 
-    ImageNet Pretrained Weights 
+    ImageNet Pretrained Weights
     Theano: https://drive.google.com/file/d/0Byy2AcGyEVxfdUV1MHJhelpnSG8/view?usp=sharing
     TensorFlow: https://drive.google.com/file/d/0Byy2AcGyEVxfTmRRVmpGWDczaXM/view?usp=sharing
 
     Parameters:
       img_rows, img_cols - resolution of inputs
-      channel - 1 for grayscale, 3 for color 
+      channel - 1 for grayscale, 3 for color
       num_classes - number of class labels for our classification task
     """
     eps = 1.1e-5
@@ -176,12 +175,13 @@ def resnet101_model(img_rows, img_cols, color_type=1, num_classes=None):
 
 if __name__ == '__main__':
 
+    from load_cifar10 import load_cifar10_data
     # Example to fine-tune on 3000 samples from Cifar10
 
     img_rows, img_cols = 224, 224 # Resolution of inputs
     channel = 3
-    num_classes = 10 
-    batch_size = 16 
+    num_classes = 10
+    batch_size = 16
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset

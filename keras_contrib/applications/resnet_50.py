@@ -9,7 +9,6 @@ from keras import backend as K
 
 from sklearn.metrics import log_loss
 
-from load_cifar10 import load_cifar10_data
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
     """
@@ -41,6 +40,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     x = merge([x, input_tensor], mode='sum')
     x = Activation('relu')(x)
     return x
+
 
 def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
     """
@@ -84,15 +84,15 @@ def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
     """
     Resnet 50 Model for Keras
 
-    Model Schema is based on 
+    Model Schema is based on
     https://github.com/fchollet/deep-learning-models/blob/master/resnet50.py
 
-    ImageNet Pretrained Weights 
+    ImageNet Pretrained Weights
     https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels.h5
 
     Parameters:
       img_rows, img_cols - resolution of inputs
-      channel - 1 for grayscale, 3 for color 
+      channel - 1 for grayscale, 3 for color
       num_classes - number of class labels for our classification task
     """
 
@@ -139,7 +139,7 @@ def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
     # Create model
     model = Model(img_input, x_fc)
 
-    # Load ImageNet pre-trained data 
+    # Load ImageNet pre-trained data
     if K.image_dim_ordering() == 'th':
       # Use pre-trained weights for Theano backend
       weights_path = 'imagenet_models/resnet50_weights_th_dim_ordering_th_kernels.h5'
@@ -162,17 +162,18 @@ def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
     # Learning rate is changed to 0.001
     sgd = SGD(lr=1e-3, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
-  
+
     return model
 
 if __name__ == '__main__':
 
+    from load_cifar10 import load_cifar10_data
     # Example to fine-tune on 3000 samples from Cifar10
 
     img_rows, img_cols = 224, 224 # Resolution of inputs
     channel = 3
-    num_classes = 10 
-    batch_size = 16 
+    num_classes = 10
+    batch_size = 16
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset
