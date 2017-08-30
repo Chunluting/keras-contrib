@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from keras.utils.data_utils import get_file
 from keras.optimizers import SGD
 from keras.layers import Input, merge, ZeroPadding2D
 from keras.layers.core import Dense, Dropout, Activation
@@ -7,22 +7,22 @@ from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import AveragePooling2D, GlobalAveragePooling2D, MaxPooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
-from ..layers.pooling import Scale
+from ..layers.core import Scale
 import keras.backend as K
 
 from sklearn.metrics import log_loss
 
 
-def densenet169_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.5, dropout_rate=0.0, weight_decay=1e-4, num_classes=None):
+def densenet161_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth_rate=48, nb_filter=96, reduction=0.5, dropout_rate=0.0, weight_decay=1e-4, num_classes=None):
     '''
-    DenseNet 169 Model for Keras
+    DenseNet 161 Model for Keras
 
     Model Schema is based on
     https://github.com/flyyufelix/DenseNet-Keras
 
     ImageNet Pretrained Weights
-    Theano: https://drive.google.com/open?id=0Byy2AcGyEVxfN0d3T1F1MXg0NlU
-    TensorFlow: https://drive.google.com/open?id=0Byy2AcGyEVxfSEc5UC1ROUFJdmM
+    Theano: https://drive.google.com/open?id=0Byy2AcGyEVxfVnlCMlBGTDR3RGs
+    TensorFlow: https://drive.google.com/open?id=0Byy2AcGyEVxfUDZwVjU2cFNidTA
 
     # Arguments
         nb_dense_block: number of dense blocks to add to end
@@ -51,8 +51,8 @@ def densenet169_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth
       img_input = Input(shape=(3, 224, 224), name='data')
 
     # From architecture for ImageNet (Table 1 in the paper)
-    nb_filter = 64
-    nb_layers = [6,12,32,32] # For DenseNet-169
+    nb_filter = 96
+    nb_layers = [6,12,36,24] # For DenseNet-161
 
     # Initial convolution
     x = ZeroPadding2D((3, 3), name='conv1_zeropadding')(img_input)
@@ -86,11 +86,15 @@ def densenet169_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth
     model = Model(img_input, x_fc, name='densenet')
 
     if K.image_dim_ordering() == 'th':
-      # Use pre-trained weights for Theano backend
-      weights_path = 'imagenet_models/densenet169_weights_th.h5'
+        # Use pre-trained weights for Theano backend
+        weights_path = get_file('densenet161_weights_th.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/densenet161_weights_th.h5',
+                                cache_subdir='models')
     else:
-      # Use pre-trained weights for Tensorflow backend
-      weights_path = 'imagenet_models/densenet169_weights_tf.h5'
+        # Use pre-trained weights for Tensorflow backend
+        weights_path = get_file('densenet161_weights_tf.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/densenet161_weights_tf.h5',
+                                cache_subdir='models')
 
     model.load_weights(weights_path, by_name=True)
 
@@ -210,14 +214,14 @@ if __name__ == '__main__':
     img_rows, img_cols = 224, 224 # Resolution of inputs
     channel = 3
     num_classes = 10
-    batch_size = 16
+    batch_size = 8
     nb_epoch = 10
 
     # Load Cifar10 data. Please implement your own load_data() module for your own dataset
     X_train, Y_train, X_valid, Y_valid = load_cifar10_data(img_rows, img_cols)
 
     # Load our model
-    model = densenet169_model(img_rows=img_rows, img_cols=img_cols, color_type=channel, num_classes=num_classes)
+    model = densenet161_model(img_rows=img_rows, img_cols=img_cols, color_type=channel, num_classes=num_classes)
 
     # Start Fine-tuning
     model.fit(X_train, Y_train,

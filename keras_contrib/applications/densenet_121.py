@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from keras.utils.data_utils import get_file
 from keras.optimizers import SGD
 from keras.layers import Input, merge, ZeroPadding2D
 from keras.layers.core import Dense, Dropout, Activation
@@ -7,10 +7,11 @@ from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import AveragePooling2D, GlobalAveragePooling2D, MaxPooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
-from keras_contrib.layers.pooling import Scale
+from ..layers.core import Scale
 import keras.backend as K
 
 from sklearn.metrics import log_loss
+
 
 def densenet121_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth_rate=32, nb_filter=64, reduction=0.5, dropout_rate=0.0, weight_decay=1e-4, num_classes=None):
     '''
@@ -85,11 +86,15 @@ def densenet121_model(img_rows, img_cols, color_type=1, nb_dense_block=4, growth
     model = Model(img_input, x_fc, name='densenet')
 
     if K.image_dim_ordering() == 'th':
-      # Use pre-trained weights for Theano backend
-      weights_path = 'imagenet_models/densenet121_weights_th.h5'
+        # Use pre-trained weights for Theano backend
+        weights_path = get_file('densenet121_weights_th.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/densenet121_weights_th.h5',
+                                cache_subdir='models')
     else:
-      # Use pre-trained weights for Tensorflow backend
-      weights_path = 'imagenet_models/densenet121_weights_tf.h5'
+        # Use pre-trained weights for Tensorflow backend
+        weights_path = get_file('densenet121_weights_tf.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/densenet121_weights_tf.h5',
+                                cache_subdir='models')
 
     model.load_weights(weights_path, by_name=True)
 

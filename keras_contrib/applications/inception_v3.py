@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from keras.utils.data_utils import get_file
 from keras.models import Sequential
 from keras.optimizers import SGD
 from keras.layers import Input, Dense, Convolution2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Dropout, Flatten, merge, Reshape, Activation
@@ -30,6 +30,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
                       name=conv_name)(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name)(x)
     return x
+
 
 def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
     """
@@ -196,8 +197,14 @@ def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
     # Create model
     model = Model(img_input, x_fc)
 
-    # Load ImageNet pre-trained data
-    model.load_weights('imagenet_models/inception_v3_weights_th_dim_ordering_th_kernels.h5')
+    # Load ImageNet pre-trained data. The tf version has not been prepared yet for this model.
+    if K.image_dim_ordering() == 'th':
+        # Use pre-trained weights for Theano backend
+        weights_path = get_file('inception-v3_weights_th_dim_ordering_th_kernels.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/inception-v3_weights_th_dim_ordering_th_kernels.h5',
+                                cache_subdir='models')
+        # Load ImageNet pre-trained data
+        model.load_weights(weights_path)
 
     # Truncate and replace softmax layer for transfer learning
     # Cannot use model.layers.pop() since model is not of Sequential() type
@@ -214,36 +221,3 @@ def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
     model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model
-
-if __name__ == '__main__':
-
-    from load_cifar10 import load_cifar10_data
-    # Example to fine-tune on 3000 samples from Cifar10
-
-    img_rows, img_cols = 299, 299 # Resolution of inputs
-    channel = 3
-    num_classes = 10
-    batch_size = 16
-    nb_epoch = 10
-
-    # Load Cifar10 data. Please implement your own load_data() module for your own dataset
-    X_train, Y_train, X_valid, Y_valid = load_cifar10_data(img_rows, img_cols)
-
-    # Load our model
-    model = inception_v3_model(img_rows, img_cols, channel, num_classes)
-
-    # Start Fine-tuning
-    model.fit(X_train, Y_train,
-              batch_size=batch_size,
-              nb_epoch=nb_epoch,
-              shuffle=True,
-              verbose=1,
-              validation_data=(X_valid, Y_valid),
-              )
-
-    # Make predictions
-    predictions_valid = model.predict(X_valid, batch_size=batch_size, verbose=1)
-
-    # Cross-entropy loss score
-    score = log_loss(Y_valid, predictions_valid)
-

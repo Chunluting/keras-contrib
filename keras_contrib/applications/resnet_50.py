@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from keras.utils.data_utils import get_file
 from keras.models import Sequential
 from keras.optimizers import SGD
 from keras.layers import Input, Dense, Convolution2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Dropout, Flatten, merge, Reshape, Activation
@@ -80,7 +80,8 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
     x = Activation('relu')(x)
     return x
 
-def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
+
+def resnet50_model(img_rows=None, img_cols=None, color_type=1, num_classes=None):
     """
     Resnet 50 Model for Keras
 
@@ -99,11 +100,11 @@ def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
     # Handle Dimension Ordering for different backends
     global bn_axis
     if K.image_dim_ordering() == 'tf':
-      bn_axis = 3
-      img_input = Input(shape=(img_rows, img_cols, color_type))
+        bn_axis = 3
+        img_input = Input(shape=(img_rows, img_cols, color_type))
     else:
-      bn_axis = 1
-      img_input = Input(shape=(color_type, img_rows, img_cols))
+        bn_axis = 1
+        img_input = Input(shape=(color_type, img_rows, img_cols))
 
     x = ZeroPadding2D((3, 3))(img_input)
     x = Convolution2D(64, 7, 7, subsample=(2, 2), name='conv1')(x)
@@ -141,11 +142,15 @@ def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
 
     # Load ImageNet pre-trained data
     if K.image_dim_ordering() == 'th':
-      # Use pre-trained weights for Theano backend
-      weights_path = 'imagenet_models/resnet50_weights_th_dim_ordering_th_kernels.h5'
+        # Use pre-trained weights for Theano backend
+        weights_path = get_file('resnet50_weights_th_dim_ordering_th_kernels.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/resnet50_weights_th_dim_ordering_th_kernels.h5',
+                                cache_subdir='models')
     else:
-      # Use pre-trained weights for Tensorflow backend
-      weights_path = 'imagenet_models/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
+        # Use pre-trained weights for Tensorflow backend
+        weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels.h5',
+                                'https://github.com/ahundt/keras-contrib/releases/download/v0.1_ahundt/resnet50_weights_tf_dim_ordering_tf_kernels.h5',
+                                cache_subdir='models')
 
     model.load_weights(weights_path)
 
@@ -164,36 +169,3 @@ def resnet50_model(img_rows, img_cols, color_type=1, num_classes=None):
     model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model
-
-if __name__ == '__main__':
-
-    from load_cifar10 import load_cifar10_data
-    # Example to fine-tune on 3000 samples from Cifar10
-
-    img_rows, img_cols = 224, 224 # Resolution of inputs
-    channel = 3
-    num_classes = 10
-    batch_size = 16
-    nb_epoch = 10
-
-    # Load Cifar10 data. Please implement your own load_data() module for your own dataset
-    X_train, Y_train, X_valid, Y_valid = load_cifar10_data(img_rows, img_cols)
-
-    # Load our model
-    model = resnet50_model(img_rows, img_cols, channel, num_classes)
-
-    # Start Fine-tuning
-    model.fit(X_train, Y_train,
-              batch_size=batch_size,
-              nb_epoch=nb_epoch,
-              shuffle=True,
-              verbose=1,
-              validation_data=(X_valid, Y_valid),
-              )
-
-    # Make predictions
-    predictions_valid = model.predict(X_valid, batch_size=batch_size, verbose=1)
-
-    # Cross-entropy loss score
-    score = log_loss(Y_valid, predictions_valid)
-
