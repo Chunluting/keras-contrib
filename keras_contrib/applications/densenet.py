@@ -506,13 +506,13 @@ def DenseNetImageNet161(input_shape=None,
                     pooling=pooling, classes=classes, activation=activation)
 
 
-def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_decay=1e-4):
+def __conv_block(x, nb_filter, bottleneck=False, dropout_rate=None, weight_decay=1e-4):
     '''
     Adds a convolution layer (with batch normalization and relu),
     and optionally a bottleneck layer.
 
     # Arguments
-        ip: Input tensor
+        x: Input tensor
         nb_filter: integer, the dimensionality of the output space
             (i.e. the number output of filters in the convolution)
         bottleneck: if True, adds a bottleneck convolution block
@@ -538,17 +538,16 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
     with K.name_scope('ConvBlock'):
         concat_axis = 1 if K.image_data_format() == 'channels_first' else -1
 
-        x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5)(ip)
-        x = Activation('relu')(x)
-
         if bottleneck:
             inter_channel = nb_filter * 4
 
-            x = Conv2D(inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
-                       kernel_regularizer=l2(weight_decay))(x)
             x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5)(x)
             x = Activation('relu')(x)
+            x = Conv2D(inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
+                       kernel_regularizer=l2(weight_decay))(x)
 
+        x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5)(x)
+        x = Activation('relu')(x)
         x = Conv2D(nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False)(x)
         if dropout_rate:
             x = Dropout(dropout_rate)(x)
@@ -557,7 +556,7 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
 
 
 def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropout_rate=None,
-                  weight_decay=1e-4, grow_nb_filters=True, return_concat_list=False):
+                  weight_decay=1e-4, grow_nb_filters=True):
     '''
     Build a dense_block where the output of each conv_block is fed
     to subsequent ones
@@ -573,21 +572,14 @@ def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropou
         dropout_rate: dropout rate
         weight_decay: weight decay factor
         grow_nb_filters: if True, allows number of filters to grow
-        return_concat_list: set to True to return the list of
-            feature maps along with the actual output
 
     # Return
-        If return_concat_list is True, returns a list of the output
-        keras tensor, the number of filters and a list of all the
-        dense blocks added to the keras tensor
-
-        If return_concat_list is False, returns a list of the output
-        keras tensor and the number of filters
+        returns a list of the output keras tensor and the number of filters
     '''
     with K.name_scope('DenseBlock'):
         concat_axis = 1 if K.image_data_format() == 'channels_first' else -1
 
-        x_list = [x]
+        x_list = []
 
         for i in range(nb_layers):
             cb = __conv_block(x, growth_rate, bottleneck, dropout_rate, weight_decay)
@@ -598,10 +590,7 @@ def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropou
             if grow_nb_filters:
                 nb_filter += growth_rate
 
-        if return_concat_list:
-            return x, nb_filter, x_list
-        else:
-            return x, nb_filter
+        return x, nb_filter
 
 
 def __transition_block(ip, nb_filter, compression=1.0, weight_decay=1e-4):
@@ -911,9 +900,8 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
 
         # The last dense_block does not have a transition_down_block
         # return the concatenated feature maps without the concatenation of the input
-        _, nb_filter, concat_list = __dense_block(x, bottleneck_nb_layers, nb_filter, growth_rate,
-                                                  dropout_rate=dropout_rate, weight_decay=weight_decay,
-                                                  return_concat_list=True)
+        x, nb_filter = __dense_block(x, bottleneck_nb_layers, nb_filter, growth_rate,
+                                     dropout_rate=dropout_rate, weight_decay=weight_decay)
 
         skip_list = skip_list[::-1]  # reverse the skip list
 
@@ -921,9 +909,9 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
         for block_idx in range(nb_dense_block):
             n_filters_keep = growth_rate * nb_layers[nb_dense_block + block_idx]
 
-            # upsampling block must upsample only the feature maps (concat_list[1:]),
-            # not the concatenation of the input with the feature maps (concat_list[0].
-            l = concatenate(concat_list[1:], axis=concat_axis)
+            # upsampling block must upsample only the feature maps x,
+            # not the concatenation of the input with the feature maps.
+            l = concatenate(x, axis=concat_axis)
 
             t = __transition_up_block(l, nb_filters=n_filters_keep, type=upsampling_type, weight_decay=weight_decay)
 
@@ -931,10 +919,10 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
             x = concatenate([t, skip_list[block_idx]], axis=concat_axis)
 
             # Dont allow the feature map size to grow in upsampling dense blocks
-            x_up, nb_filter, concat_list = __dense_block(x, nb_layers[nb_dense_block + block_idx + 1], nb_filter=growth_rate,
-                                                         growth_rate=growth_rate, dropout_rate=dropout_rate,
-                                                         weight_decay=weight_decay, return_concat_list=True,
-                                                         grow_nb_filters=False)
+            x_up, nb_filter = __dense_block(x, nb_layers[nb_dense_block + block_idx + 1], nb_filter=growth_rate,
+                                            growth_rate=growth_rate, dropout_rate=dropout_rate,
+                                            weight_decay=weight_decay,
+                                            grow_nb_filters=False)
 
         if include_top:
             x = Conv2D(nb_classes, (1, 1), activation='linear', padding='same', use_bias=False)(x_up)
