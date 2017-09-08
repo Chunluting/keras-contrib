@@ -946,15 +946,15 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
             else:
                 row, col, channel = input_shape
 
-        if activation is 'spatial_activation':
-            x = SpatialActivation2D()(x)
-        elif isinstance(activation, six.string_types) and 'spatial_' in activation:
-            x = SpatialActivation2D(activation[8:])(x)
-        else:
-            x = Reshape((row * col, nb_classes))(x)
-            x = Activation(activation)(x)
-            x = Reshape((row, col, nb_classes))(x)
+            if activation is 'spatial_activation':
+                x = SpatialActivation2D()(x)
+            elif isinstance(activation, six.string_types) and 'spatial_' in activation:
+                x = SpatialActivation2D(activation[8:])(x)
+            else:
+                x = Reshape((row * col, nb_classes))(x)
+                x = Activation(activation)(x)
+                x = Reshape((row, col, nb_classes))(x)
         else:
             x = x_up
 
-        return x
+    return x
