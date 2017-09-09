@@ -113,7 +113,7 @@ def basic_block(filters, init_strides=(1, 1), is_first_block_of_first_layer=Fals
     """Basic 3 X 3 convolution blocks for use on resnets with layers <= 34.
     Follows improved proposed scheme in http://arxiv.org/pdf/1603.05027v2.pdf
     """
-    def f(input):
+    def f(input_features):
 
         if is_first_block_of_first_layer:
             # don't repeat bn->relu since we just did bn->relu->maxpool
@@ -121,16 +121,17 @@ def basic_block(filters, init_strides=(1, 1), is_first_block_of_first_layer=Fals
                            strides=init_strides,
                            padding="same",
                            kernel_initializer="he_normal",
-                           kernel_regularizer=l2(1e-4))(input)
+                           kernel_regularizer=l2(1e-4))(input_features)
         else:
             conv1 = _bn_relu_conv(filters=filters, kernel_size=(3, 3),
-                                  strides=init_strides)(input)
+                                  strides=init_strides)(input_features)
 
-        residual = _bn_relu_conv(filters=filters, kernel_size=(3, 3))(conv1)
-        return _shortcut(input, residual)
+        x = _bn_relu_conv(filters=filters, kernel_size=(3, 3))(conv1)
 
         if dropout is not None:
             x = Dropout(dropout)(x)
+
+        return _shortcut(input_features, x)
 
     return f
 
