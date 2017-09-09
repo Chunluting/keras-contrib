@@ -80,10 +80,14 @@ def _shortcut(input, residual):
     stride_width = int(round(input_shape[ROW_AXIS] / residual_shape[ROW_AXIS]))
     stride_height = int(round(input_shape[COL_AXIS] / residual_shape[COL_AXIS]))
     equal_channels = input_shape[CHANNEL_AXIS] == residual_shape[CHANNEL_AXIS]
+    
+    # TODO(ahundt) delete comment after things have been working for a while
+    # print('input_shape: ', input_shape, ' residual_shape: ', residual_shape, ' stride_height: ', stride_height, ' stride_width: ', stride_width, 'equal_channels: ', equal_channels, ' channel axis: ', CHANNEL_AXIS)
 
     shortcut = input
     # 1 X 1 conv if shape is different. Else identity.
     if stride_width > 1 or stride_height > 1 or not equal_channels:
+        print('reshaping via a convolution...')
         shortcut = Conv2D(filters=residual_shape[CHANNEL_AXIS],
                           kernel_size=(1, 1),
                           strides=(stride_width, stride_height),
@@ -171,7 +175,7 @@ def _handle_dim_ordering():
     global ROW_AXIS
     global COL_AXIS
     global CHANNEL_AXIS
-    if K.image_data_format() == 'channels_first':
+    if K.image_data_format() == 'channels_last':
         ROW_AXIS = 1
         COL_AXIS = 2
         CHANNEL_AXIS = 3
