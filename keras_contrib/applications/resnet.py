@@ -80,9 +80,6 @@ def _shortcut(input_feature, residual):
     stride_width = int(round(input_shape[ROW_AXIS] / residual_shape[ROW_AXIS]))
     stride_height = int(round(input_shape[COL_AXIS] / residual_shape[COL_AXIS]))
     equal_channels = input_shape[CHANNEL_AXIS] == residual_shape[CHANNEL_AXIS]
-    
-    # TODO(ahundt) delete comment after things have been working for a while
-    # print('input_shape: ', input_shape, ' residual_shape: ', residual_shape, ' stride_height: ', stride_height, ' stride_width: ', stride_width, 'equal_channels: ', equal_channels, ' channel axis: ', CHANNEL_AXIS)
 
     shortcut = input_feature
     # 1 X 1 conv if shape is different. Else identity.
