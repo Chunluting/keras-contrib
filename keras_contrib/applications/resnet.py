@@ -69,13 +69,13 @@ def _bn_relu_conv(**conv_params):
     return f
 
 
-def _shortcut(input, residual):
+def _shortcut(input_feature, residual):
     """Adds a shortcut between input and residual block and merges them with "sum"
     """
     # Expand channels of shortcut to match residual.
     # Stride appropriately to match residual (width, height)
     # Should be int if network architecture is correctly configured.
-    input_shape = K.int_shape(input)
+    input_shape = K.int_shape(input_feature)
     residual_shape = K.int_shape(residual)
     stride_width = int(round(input_shape[ROW_AXIS] / residual_shape[ROW_AXIS]))
     stride_height = int(round(input_shape[COL_AXIS] / residual_shape[COL_AXIS]))
@@ -84,7 +84,7 @@ def _shortcut(input, residual):
     # TODO(ahundt) delete comment after things have been working for a while
     # print('input_shape: ', input_shape, ' residual_shape: ', residual_shape, ' stride_height: ', stride_height, ' stride_width: ', stride_width, 'equal_channels: ', equal_channels, ' channel axis: ', CHANNEL_AXIS)
 
-    shortcut = input
+    shortcut = input_feature
     # 1 X 1 conv if shape is different. Else identity.
     if stride_width > 1 or stride_height > 1 or not equal_channels:
         print('reshaping via a convolution...')
