@@ -19,9 +19,6 @@ TimeDistributed adapted from: github.com/voletiv/keras-resnet
 from __future__ import division
 
 import six
-import warnings
-from keras.utils.data_utils import get_file
-from keras.utils import layer_utils
 from keras.models import Model
 from keras.layers import Input
 from keras.layers import Activation
@@ -40,10 +37,6 @@ from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 from keras import backend as K
 from keras.applications.imagenet_utils import _obtain_input_shape
-
-
-WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
-WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def _bn_relu(x, bn_name=None, relu_name=None, time_distributed=False, verbose=False):
@@ -225,10 +218,11 @@ def _block_name_base(stage, block):
     If there are less than 26 blocks they will be labeled 'a', 'b', 'c' to match the paper and keras
     and beyond 26 blocks they will simply be numbered.
     """
-    if block < 27:
+    if block >= 0 and block < 26:
         block = '%c' % (block + 97)  # 97 is the ascii number for lowercase 'a'
     conv_name_base = 'res' + str(stage) + str(block) + '_branch'
     bn_name_base = 'bn' + str(stage) + str(block) + '_branch'
+
     return conv_name_base, bn_name_base
 
 
@@ -415,7 +409,7 @@ def ResNet(input_shape=None, classes=10, block='bottleneck', residual_unit='v2',
            initial_filters=64, activation='softmax', include_top=True, input_tensor=None,
            dropout=None, transition_dilation_rate=(1, 1), initial_strides=(2, 2),
            initial_kernel_size=(7, 7), initial_pooling='max', initial_padding='same', final_pooling=None,
-           top='classification', time_distributed=False, verbose=False, weights=None):
+           top='classification', time_distributed=False, weights=None, verbose=False):
     """Builds a custom ResNet like architecture. Defaults to ResNet50 v2.
 
     Args:
@@ -473,7 +467,9 @@ def ResNet(input_shape=None, classes=10, block='bottleneck', residual_unit='v2',
             the Pascal VOC dataset, and None to exclude these layers entirely.
         time_distributed: Boolean that indicates whether the ResNet is to be repeated over a
             time axis, to make a TimeDistributed ResNet
-        verbose: Boolean that indicates whether to print layer names as they are built
+        time_distributed: True wraps all layers in TimeDistributed layers for use in RNNs.
+        weights: Path to a pre-trained keras weights file which will be loaded from disk.
+        verbose: True prints layer names as they are built, False disables the printouts.
 
     Returns:
         The keras `Model`.
@@ -493,10 +489,16 @@ def ResNet(input_shape=None, classes=10, block='bottleneck', residual_unit='v2',
 
     if time_distributed:
         if len(input_shape) != 4:
-            raise Exception("Input shape should be a tuple (nb_time_steps, nb_rows, nb_cols, nb_channels)")
+            if K.image_data_format() == 'channels_last':
+                raise Exception("channels_last: Input shape should be a tuple (nb_time_steps, nb_rows, nb_cols, nb_channels)")
+            else:
+                raise Exception("channels_first: Input shape should be a tuple (nb_time_steps, nb_channels, nb_rows, nb_cols)")
     else:
         if len(input_shape) != 3:
-            raise Exception("Input shape should be a tuple (nb_rows, nb_cols, nb_channels)")
+            if K.image_data_format() == 'channels_last':
+                raise Exception("channels_last: Input shape should be a tuple (nb_rows, nb_cols, nb_channels)")
+            else:
+                raise Exception("channels_first: Input shape should be a tuple (nb_channels, nb_rows, nb_cols)")
 
     if block == 'basic':
         block_fn = basic_block
@@ -515,10 +517,6 @@ def ResNet(input_shape=None, classes=10, block='bottleneck', residual_unit='v2',
         residual_unit = _string_to_function(residual_unit)
     else:
         residual_unit = residual_unit
-
-    # Determine proper input shape again
-    input_shape = obtain_input_shape(input_shape=input_shape, require_flatten=include_top,
-                                     time_distributed=time_distributed)
 
     # Initial
     img_input = Input(shape=input_shape, tensor=input_tensor)
@@ -613,74 +611,31 @@ def ResNet(input_shape=None, classes=10, block='bottleneck', residual_unit='v2',
     return model
 
 
-def ResNet18(input_shape=None, classes=10, time_distributed=False, verbose=False, **kwargs):
+def ResNet18(input_shape=None, classes=10, **kwargs):
     """ResNet with 18 layers and v2 residual units
     """
-    return ResNet(input_shape, classes, basic_block, repetitions=[2, 2, 2, 2],
-                  time_distributed=time_distributed, verbose=verbose, **kwargs)
+    return ResNet(input_shape, classes, basic_block, repetitions=[2, 2, 2, 2], **kwargs)
 
 
-def ResNet34(input_shape=None, classes=10, time_distributed=False, verbose=False, **kwargs):
+def ResNet34(input_shape=None, classes=10, **kwargs):
     """ResNet with 34 layers and v2 residual units
     """
-    return ResNet(input_shape, classes, basic_block, repetitions=[3, 4, 6, 3],
-                  time_distributed=time_distributed, verbose=verbose, **kwargs)
+    return ResNet(input_shape, classes, basic_block, repetitions=[3, 4, 6, 3], **kwargs)
 
 
-def ResNet50(input_shape=None, classes=1000, time_distributed=False, verbose=False,
-             weights='imagenet', include_top=True, residual_unit='v1', initial_strides=(2, 2), **kwargs):
-    """ResNet with 50 layers and v1 residual units
-
-    ResNet50 defaults to ResNet v1, unlike other models models that default to v2.
-    This is done to be backwards compatible with the ResNet50 pretrained provided in Keras.
+def ResNet50(input_shape=None, classes=1000, **kwargs):
+    """ResNet with 50 layers and v2 residual units
     """
-    model = ResNet(input_shape, classes, bottleneck, repetitions=[3, 4, 6, 3],
-                   time_distributed=time_distributed, verbose=verbose, include_top=include_top,
-                   residual_unit=residual_unit, initial_strides=initial_strides,
-                   initial_padding='valid', **kwargs)
-
-    # load weights
-    if weights == 'imagenet' and residual_unit == 'v1':
-        if include_top:
-            weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels.h5',
-                                    WEIGHTS_PATH,
-                                    cache_subdir='models',
-                                    md5_hash='a7b3fe01876f51b976af0dea6bc144eb')
-        else:
-            weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                                    WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models',
-                                    md5_hash='a268eb855778b3df3c7506639542a6af')
-        model.load_weights(weights_path)
-        if K.backend() == 'theano':
-            layer_utils.convert_all_kernels_in_model(model)
-            if include_top:
-                maxpool = model.get_layer(name='avg_pool')
-                shape = maxpool.output_shape[1:]
-                dense = model.get_layer(name='fc1000')
-                layer_utils.convert_dense_weights_data_format(dense, shape, 'channels_first')
-
-        if K.image_data_format() == 'channels_first' and K.backend() == 'tensorflow':
-            warnings.warn('You are using the TensorFlow backend, yet you '
-                          'are using the Theano '
-                          'image data format convention '
-                          '(`image_data_format="channels_first"`). '
-                          'For best performance, set '
-                          '`image_data_format="channels_last"` in '
-                          'your Keras config '
-                          'at ~/.keras/keras.json.')
-    return model
+    return ResNet(input_shape, classes, bottleneck, repetitions=[3, 4, 6, 3], **kwargs)
 
 
-def ResNet101(input_shape=None, classes=1000, time_distributed=False, verbose=False, **kwargs):
+def ResNet101(input_shape=None, classes=1000, **kwargs):
     """ResNet with 101 layers and v2 residual units
     """
-    return ResNet(input_shape, classes, bottleneck, repetitions=[3, 4, 23, 3],
-                  time_distributed=time_distributed, verbose=verbose, **kwargs)
+    return ResNet(input_shape, classes, bottleneck, repetitions=[3, 4, 23, 3], **kwargs)
 
 
-def ResNet152(input_shape=None, classes=1000, time_distributed=False, verbose=False, **kwargs):
+def ResNet152(input_shape=None, classes=1000, **kwargs):
     """ResNet with 152 layers and v2 residual units
     """
-    return ResNet(input_shape, classes, bottleneck, repetitions=[3, 8, 36, 3],
-                  time_distributed=time_distributed, verbose=verbose, **kwargs)
+    return ResNet(input_shape, classes, bottleneck, repetitions=[3, 8, 36, 3], **kwargs)
