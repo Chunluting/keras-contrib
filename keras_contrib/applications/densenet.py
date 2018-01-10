@@ -204,7 +204,7 @@ def DenseNet(input_shape=None,
                                       default_size=32,
                                       min_size=8,
                                       data_format=K.image_data_format(),
-                                      include_top=include_top)
+                                      require_flatten=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -300,7 +300,7 @@ def DenseNetFCN(input_shape=None, nb_dense_block=5, growth_rate=16, nb_layers_pe
                 reduction=0.0, dropout_rate=0.0, weight_decay=1E-4, init_conv_filters=48,
                 include_top=True, weights=None, input_tensor=None, classes=1, activation='softmax',
                 upsampling_conv=128, upsampling_type='deconv', early_transition=False,
-                pooling='max'):
+                pooling='max', initial_kernel_size=(3, 3)):
     '''Instantiate the DenseNet FCN architecture.
         Note that when using TensorFlow,
         for best performance you should set
@@ -405,10 +405,11 @@ def DenseNetFCN(input_shape=None, nb_dense_block=5, growth_rate=16, nb_layers_pe
         else:
             img_input = input_tensor
 
-    x = __create_fcn_dense_net(classes, img_input, include_top, nb_dense_block,
-                               growth_rate, reduction, dropout_rate, weight_decay,
+    x = __create_fcn_dense_net(classes, img_input, include_top, nb_dense_block, growth_rate,
+                               reduction, dropout_rate, weight_decay,
                                nb_layers_per_block, upsampling_conv, upsampling_type,
-                               init_conv_filters, input_shape, activation, early_transition)
+                               init_conv_filters, input_shape, activation,
+                               early_transition, transition_pooling, initial_kernel_size)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -712,7 +713,7 @@ def __transition_up_block(ip, nb_filters, type='deconv', weight_decay=1E-4, bloc
 
 def __create_dense_net(nb_classes, img_input, include_top, depth=40, nb_dense_block=3, growth_rate=12, nb_filter=-1,
                        nb_layers_per_block=-1, bottleneck=False, reduction=0.0, dropout_rate=None, weight_decay=1e-4,
-                       subsample_initial_block=False, pooling=None, activation='softmax', transition_pooling='max'):
+                       subsample_initial_block=False, pooling=None, activation='softmax', transition_pooling='avg'):
     ''' Build the DenseNet model
 
     # Arguments
@@ -751,7 +752,7 @@ def __create_dense_net(nb_classes, img_input, include_top, depth=40, nb_dense_bl
                 be applied.
         activation: Type of activation at the top layer. Can be one of 'softmax' or 'sigmoid'.
                 Note that if sigmoid is used, classes must be 1.
-        transition_pooling: 'max' for max pooling (default), 'avg' for average pooling,
+        transition_pooling: 'avg' for average pooling(default), 'max' for max pooling,
             None for no pooling.
 
     # Returns
@@ -850,9 +851,9 @@ def __create_dense_net(nb_classes, img_input, include_top, depth=40, nb_dense_bl
 
 def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5, growth_rate=12,
                            reduction=0.0, dropout_rate=None, weight_decay=1e-4,
-                           nb_layers_per_block=4, nb_upsampling_conv=128, upsampling_type='upsampling',
-                           init_conv_filters=48, input_shape=None, activation='deconv',
-                           early_transition=False, transition_pooling='max'):
+                           nb_layers_per_block=4, nb_upsampling_conv=128, upsampling_type='deconv',
+                           init_conv_filters=48, input_shape=None, activation='softmax',
+                           early_transition=False, transition_pooling='max', initial_kernel_size=(3, 3)):
     ''' Build the DenseNet-FCN model
 
     # Arguments
@@ -878,7 +879,8 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
         early_transition: Start with an extra initial transition down and end with an extra
             transition up to reduce the network size.
         transition_pooling: 'max' for max pooling (default), 'avg' for average pooling,
-            None for no pooling.
+            None for no pooling. Please note that this default differs from the DenseNet
+            paper in accordance with the DenseNetFCN paper.
 
     # Returns
         a keras tensor
@@ -924,7 +926,7 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
         compression = 1.0 - reduction
 
         # Initial convolution
-        x = Conv2D(init_conv_filters, (7, 7), kernel_initializer='he_normal', padding='same', name='initial_conv2D',
+        x = Conv2D(init_conv_filters, initial_kernel_size, kernel_initializer='he_normal', padding='same', name='initial_conv2D',
                    use_bias=False, kernel_regularizer=l2(weight_decay))(img_input)
         x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5, name='initial_bn')(x)
         x = Activation('relu')(x)
