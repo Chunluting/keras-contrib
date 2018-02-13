@@ -858,6 +858,75 @@ def __create_dense_net(nb_classes, img_input, include_top, depth=40, nb_dense_bl
         return x
 
 
+def __densenet_fcn_encoder(input_tensor, early_transition, init_conv_filters, reduction, weight_decay,
+                           transition_pooling, nb_dense_block, nb_layers, growth_rate, dropout_rate):
+
+    x = input_tensor
+    # compute compression factor
+    compression = 1.0 - reduction
+    nb_filter = init_conv_filters
+    skip_list = []
+
+    if early_transition:
+        x = __transition_block(x, nb_filter, compression=compression, weight_decay=weight_decay,
+                               block_prefix='tr_early', transition_pooling=transition_pooling)
+
+    # Add dense blocks and transition down block
+    for block_idx in range(nb_dense_block):
+        x, nb_filter = __dense_block(x, nb_layers[block_idx], nb_filter, growth_rate, dropout_rate=dropout_rate,
+                                     weight_decay=weight_decay, block_prefix='dense_%i' % block_idx)
+
+        # Skip connection
+        skip_list.append(x)
+
+        # add transition_block
+        x = __transition_block(x, nb_filter, compression=compression, weight_decay=weight_decay,
+                               block_prefix='tr_%i' % block_idx, transition_pooling=transition_pooling)
+
+        nb_filter = int(nb_filter * compression)  # this is calculated inside transition_down_block
+    return x, skip_list, nb_filter
+
+
+def __densenet_fcn_decoder(input_tensor, bottleneck_nb_layers, nb_filter, growth_rate, dropout_rate, weight_decay, nb_dense_block,
+                           skip_list, nb_layers, concat_axis, upsampling_type, early_transition):
+    x = input_tensor
+
+    # The last dense_block does not have a transition_down_block
+    # return the concatenated feature maps without the concatenation of the input
+    _, nb_filter, concat_list = __dense_block(x, bottleneck_nb_layers, nb_filter, growth_rate,
+                                              dropout_rate=dropout_rate, weight_decay=weight_decay,
+                                              return_concat_list=True,
+                                              block_prefix='dense_%i' % nb_dense_block)
+
+    skip_list = skip_list[::-1]  # reverse the skip list
+
+    # Add dense blocks and transition up block
+    for block_idx in range(nb_dense_block):
+        n_filters_keep = growth_rate * nb_layers[nb_dense_block + block_idx]
+
+        # upsampling block must upsample only the feature maps (concat_list[1:]),
+        # not the concatenation of the input with the feature maps (concat_list[0].
+        l = concatenate(concat_list[1:], axis=concat_axis)
+
+        t = __transition_up_block(l, nb_filters=n_filters_keep, type=upsampling_type, weight_decay=weight_decay,
+                                  block_prefix='tr_up_%i' % block_idx)
+
+        # concatenate the skip connection with the transition block
+        x = concatenate([t, skip_list[block_idx]], axis=concat_axis)
+
+        # Dont allow the feature map size to grow in upsampling dense blocks
+        x_up, nb_filter, concat_list = __dense_block(x, nb_layers[nb_dense_block + block_idx + 1],
+                                                     nb_filter=growth_rate, growth_rate=growth_rate,
+                                                     dropout_rate=dropout_rate, weight_decay=weight_decay,
+                                                     return_concat_list=True, grow_nb_filters=False,
+                                                     block_prefix='dense_%i' % (nb_dense_block + 1 + block_idx))
+
+    if early_transition:
+        x_up = __transition_up_block(x_up, nb_filters=nb_filter, type=upsampling_type, weight_decay=weight_decay,
+                                     block_prefix='tr_up_early')
+    return x_up
+
+
 def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5, growth_rate=12,
                            reduction=0.0, dropout_rate=None, weight_decay=1e-4,
                            nb_layers_per_block=4, nb_upsampling_conv=128, upsampling_type='deconv',
@@ -933,70 +1002,19 @@ def __create_fcn_dense_net(nb_classes, img_input, include_top, nb_dense_block=5,
             bottleneck_nb_layers = nb_layers_per_block
             nb_layers = [nb_layers_per_block] * (2 * nb_dense_block + 1)
 
-        # compute compression factor
-        compression = 1.0 - reduction
-
         # Initial convolution
         x = Conv2D(init_conv_filters, initial_kernel_size, kernel_initializer='he_normal', padding='same', name='initial_conv2D',
                    use_bias=False, kernel_regularizer=l2(weight_decay))(img_input)
         x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5, name='initial_bn')(x)
         x = Activation('relu')(x)
 
-        nb_filter = init_conv_filters
+        x, skip_list, nb_filter = __densenet_fcn_encoder(
+            x, early_transition, init_conv_filters, reduction, weight_decay, transition_pooling,
+            nb_dense_block, nb_layers, growth_rate, dropout_rate)
 
-        skip_list = []
-
-        if early_transition:
-            x = __transition_block(x, nb_filter, compression=compression, weight_decay=weight_decay,
-                                   block_prefix='tr_early', transition_pooling=transition_pooling)
-
-        # Add dense blocks and transition down block
-        for block_idx in range(nb_dense_block):
-            x, nb_filter = __dense_block(x, nb_layers[block_idx], nb_filter, growth_rate, dropout_rate=dropout_rate,
-                                         weight_decay=weight_decay, block_prefix='dense_%i' % block_idx)
-
-            # Skip connection
-            skip_list.append(x)
-
-            # add transition_block
-            x = __transition_block(x, nb_filter, compression=compression, weight_decay=weight_decay,
-                                   block_prefix='tr_%i' % block_idx, transition_pooling=transition_pooling)
-
-            nb_filter = int(nb_filter * compression)  # this is calculated inside transition_down_block
-
-        # The last dense_block does not have a transition_down_block
-        # return the concatenated feature maps without the concatenation of the input
-        _, nb_filter, concat_list = __dense_block(x, bottleneck_nb_layers, nb_filter, growth_rate,
-                                                  dropout_rate=dropout_rate, weight_decay=weight_decay,
-                                                  return_concat_list=True,
-                                                  block_prefix='dense_%i' % nb_dense_block)
-
-        skip_list = skip_list[::-1]  # reverse the skip list
-
-        # Add dense blocks and transition up block
-        for block_idx in range(nb_dense_block):
-            n_filters_keep = growth_rate * nb_layers[nb_dense_block + block_idx]
-
-            # upsampling block must upsample only the feature maps (concat_list[1:]),
-            # not the concatenation of the input with the feature maps (concat_list[0].
-            l = concatenate(concat_list[1:], axis=concat_axis)
-
-            t = __transition_up_block(l, nb_filters=n_filters_keep, type=upsampling_type, weight_decay=weight_decay,
-                                      block_prefix='tr_up_%i' % block_idx)
-
-            # concatenate the skip connection with the transition block
-            x = concatenate([t, skip_list[block_idx]], axis=concat_axis)
-
-            # Dont allow the feature map size to grow in upsampling dense blocks
-            x_up, nb_filter, concat_list = __dense_block(x, nb_layers[nb_dense_block + block_idx + 1],
-                                                         nb_filter=growth_rate, growth_rate=growth_rate,
-                                                         dropout_rate=dropout_rate, weight_decay=weight_decay,
-                                                         return_concat_list=True, grow_nb_filters=False,
-                                                         block_prefix='dense_%i' % (nb_dense_block + 1 + block_idx))
-
-        if early_transition:
-            x_up = __transition_up_block(x_up, nb_filters=nb_filter, type=upsampling_type, weight_decay=weight_decay,
-                                         block_prefix='tr_up_early')
+        x_up = __densenet_fcn_decoder(
+            x, bottleneck_nb_layers, nb_filter, growth_rate, dropout_rate, weight_decay,
+            nb_dense_block, skip_list, nb_layers, concat_axis, upsampling_type, early_transition)
         if include_top:
             x = Conv2D(nb_classes, (1, 1), activation='linear', padding='same', use_bias=False)(x_up)
 
