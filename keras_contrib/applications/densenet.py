@@ -54,6 +54,7 @@ from keras.layers import Dropout
 from keras.layers import Activation
 from keras.layers import Reshape
 from keras.layers import Conv2D
+from keras.layers import Conv1D
 from keras.layers import Conv2DTranspose
 from keras.layers import UpSampling2D
 from keras.layers import MaxPooling2D
@@ -522,7 +523,7 @@ def name_or_none(prefix, name):
     return prefix + name if (prefix is not None and name is not None) else None
 
 
-def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_decay=1e-4, block_prefix=None):
+def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_decay=1e-4, block_prefix=None, dims=2):
     '''
     Adds a convolution layer (with batch normalization and relu),
     and optionally a bottleneck layer.
@@ -535,6 +536,7 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
         dropout_rate: dropout rate
         weight_decay: weight decay factor
         block_prefix: str, for unique layer naming
+        dims: default of 2 for Conv2D, 1 for Conv1D
 
      # Input shape
         4D tensor with shape:
@@ -561,14 +563,23 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
         if bottleneck:
             inter_channel = nb_filter * 4
 
-            x = Conv2D(inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
-                       kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_conv2D'))(x)
+            if dims == 2:
+                x = Conv2D(inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
+                           kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_conv2D'))(x)
+            else:
+                x = Conv1D(inter_channel, (1,), kernel_initializer='he_normal', padding='same', use_bias=False,
+                           kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_conv2D'))(x)
+
             x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5,
                                    name=name_or_none(block_prefix, '_bottleneck_bn'))(x)
             x = Activation('relu')(x)
 
-        x = Conv2D(nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False,
-                   name=name_or_none(block_prefix, '_conv2D'))(x)
+        if dims == 2:
+            x = Conv2D(nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False,
+                       name=name_or_none(block_prefix, '_conv2D'))(x)
+        else:
+            x = Conv1D(nb_filter, (3,), kernel_initializer='he_normal', padding='same', use_bias=False,
+                       name=name_or_none(block_prefix, '_conv2D'))(x)
         if dropout_rate:
             x = Dropout(dropout_rate)(x)
 
@@ -576,7 +587,8 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
 
 
 def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropout_rate=None,
-                  weight_decay=1e-4, grow_nb_filters=True, return_concat_list=False, block_prefix=None):
+                  weight_decay=1e-4, grow_nb_filters=True, return_concat_list=False,
+                  block_prefix=None, dims=2):
     '''
     Build a dense_block where the output of each conv_block is fed
     to subsequent ones
@@ -595,6 +607,7 @@ def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropou
         return_concat_list: set to True to return the list of
             feature maps along with the actual output
         block_prefix: str, for block unique naming
+        dims: default of 2 for Conv2D, 1 for Conv1D
 
     # Return
         If return_concat_list is True, returns a list of the output
@@ -611,7 +624,8 @@ def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropou
 
         for i in range(nb_layers):
             cb = __conv_block(x, growth_rate, bottleneck, dropout_rate, weight_decay,
-                              block_prefix=name_or_none(block_prefix, '_%i' % i))
+                              block_prefix=name_or_none(block_prefix, '_%i' % i),
+                              dims=dims)
             x_list.append(cb)
 
             x = concatenate([x, cb], axis=concat_axis)
