@@ -536,7 +536,7 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
         dropout_rate: dropout rate
         weight_decay: weight decay factor
         block_prefix: str, for unique layer naming
-        dims: default of 2 for Conv2D, 1 for Conv1D
+        dims: default of 2 for Conv2D, 1 for Conv1D, 0 for Dense.
 
      # Input shape
         4D tensor with shape:
@@ -566,9 +566,12 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
             if dims == 2:
                 x = Conv2D(inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
                            kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_conv2D'))(x)
-            else:
+            elif dims == 1:
                 x = Conv1D(inter_channel, (1,), kernel_initializer='he_normal', padding='same', use_bias=False,
-                           kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_conv2D'))(x)
+                           kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_conv1D'))(x)
+            else:
+                x = Dense(inter_channel, kernel_initializer='he_normal', use_bias=False,
+                          kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_Dense'))(x)
 
             x = BatchNormalization(axis=concat_axis, epsilon=1.1e-5,
                                    name=name_or_none(block_prefix, '_bottleneck_bn'))(x)
@@ -577,9 +580,13 @@ def __conv_block(ip, nb_filter, bottleneck=False, dropout_rate=None, weight_deca
         if dims == 2:
             x = Conv2D(nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False,
                        name=name_or_none(block_prefix, '_conv2D'))(x)
-        else:
+        elif dims == 1:
             x = Conv1D(nb_filter, (3,), kernel_initializer='he_normal', padding='same', use_bias=False,
-                       name=name_or_none(block_prefix, '_conv2D'))(x)
+                       name=name_or_none(block_prefix, '_conv1D'))(x)
+        else:
+            x = Dense(nb_filter, kernel_initializer='he_normal', use_bias=False,
+                      kernel_regularizer=l2(weight_decay), name=name_or_none(block_prefix, '_bottleneck_Dense'))(x)
+
         if dropout_rate:
             x = Dropout(dropout_rate)(x)
 
@@ -607,7 +614,7 @@ def __dense_block(x, nb_layers, nb_filter, growth_rate, bottleneck=False, dropou
         return_concat_list: set to True to return the list of
             feature maps along with the actual output
         block_prefix: str, for block unique naming
-        dims: default of 2 for Conv2D, 1 for Conv1D
+        dims: default of 2 for Conv2D, 1 for Conv1D, 0 for Dense.
 
     # Return
         If return_concat_list is True, returns a list of the output
