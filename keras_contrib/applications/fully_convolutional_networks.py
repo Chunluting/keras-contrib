@@ -472,7 +472,8 @@ def FCN_Vgg16_32s(input_shape=None, weight_decay=0., batch_momentum=0.9, batch_s
 
 
 def AtrousFCN_Vgg16_16s(input_shape=None, weight_decay=0., batch_momentum=0.9, batch_shape=None,
-                        classes=21, weights_path=None, upsample=True, input_tensor=None, include_top=False):
+                        classes=21, weights_path=None, upsample=True, input_tensor=None, include_top=False,
+                        dilation_rate=(2, 2), name=''):
     if batch_shape:
         img_input = Input(tensor=input_tensor, batch_shape=batch_shape)
         if upsample:
@@ -483,47 +484,49 @@ def AtrousFCN_Vgg16_16s(input_shape=None, weight_decay=0., batch_momentum=0.9, b
             image_size = input_shape[0:2]
     # Block 1
     x = Conv2D(64, (3, 3), activation='relu', padding='same',
-               name='block1_conv1', kernel_regularizer=l2(weight_decay))(img_input)
+               name=name + 'block1_conv1', kernel_regularizer=l2(weight_decay))(img_input)
     x = Conv2D(64, (3, 3), activation='relu', padding='same',
-               name='block1_conv2', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block1_conv2', kernel_regularizer=l2(weight_decay))(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
 
     # Block 2
     x = Conv2D(128, (3, 3), activation='relu', padding='same',
-               name='block2_conv1', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block2_conv1', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(128, (3, 3), activation='relu', padding='same',
-               name='block2_conv2', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block2_conv2', kernel_regularizer=l2(weight_decay))(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
 
     # Block 3
     x = Conv2D(256, (3, 3), activation='relu', padding='same',
-               name='block3_conv1', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block3_conv1', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(256, (3, 3), activation='relu', padding='same',
-               name='block3_conv2', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block3_conv2', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(256, (3, 3), activation='relu', padding='same',
-               name='block3_conv3', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block3_conv3', kernel_regularizer=l2(weight_decay))(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool')(x)
 
     # Block 4
     x = Conv2D(512, (3, 3), activation='relu', padding='same',
-               name='block4_conv1', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block4_conv1', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(512, (3, 3), activation='relu', padding='same',
-               name='block4_conv2', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block4_conv2', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(512, (3, 3), activation='relu', padding='same',
-               name='block4_conv3', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block4_conv3', kernel_regularizer=l2(weight_decay))(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
 
     # Block 5
     x = Conv2D(512, (3, 3), activation='relu', padding='same',
-               name='block5_conv1', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block5_conv1', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(512, (3, 3), activation='relu', padding='same',
-               name='block5_conv2', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block5_conv2', kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(512, (3, 3), activation='relu', padding='same',
-               name='block5_conv3', kernel_regularizer=l2(weight_decay))(x)
+               name=name + 'block5_conv3', kernel_regularizer=l2(weight_decay))(x)
+    if dilation_rate == 1 or dilation_rate == (1, 1):
+        x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
 
     if include_top:
         # Convolutional layers transfered from fully-connected layers
-        x = Conv2D(4096, (7, 7), activation='relu', padding='same', dilation_rate=(2, 2),
+        x = Conv2D(4096, (7, 7), activation='relu', padding='same', dilation_rate=dilation_rate,
                    name='fc1', kernel_regularizer=l2(weight_decay))(x)
         x = Dropout(0.5)(x)
         x = Conv2D(4096, (1, 1), activation='relu', padding='same',
@@ -607,7 +610,8 @@ def FCN_Resnet50_32s(input_shape=None, weight_decay=0., batch_momentum=0.9, batc
     return model
 
 
-def AtrousFCN_Resnet50_16s(input_shape=None, weight_decay=0., batch_momentum=0.9, batch_shape=None, classes=21):
+def AtrousFCN_Resnet50_16s(input_shape=None, weight_decay=0., batch_momentum=0.9, batch_shape=None, classes=21,
+                           include_top=False, upsample=False):
     if input_shape is None and input_tensor is not None:
         batch_shape = keras.backend.int_shape(input_tensor)
 
@@ -666,12 +670,29 @@ def AtrousFCN_Resnet50_16s(input_shape=None, weight_decay=0., batch_momentum=0.9
     #  x = Conv2D(classes, (3, 3), dilation_rate=(2, 2), kernel_initializer='normal', activation='linear', padding='same', strides=(1, 1), kernel_regularizer=l2(weight_decay))(x)
     x = Conv2D(classes, (1, 1), kernel_initializer='he_normal', activation='linear',
                padding='same', strides=(1, 1), kernel_regularizer=l2(weight_decay))(x)
-    x = BilinearUpSampling2D(target_size=tuple(image_size))(x)
+
+    if upsample:
+        x = BilinearUpSampling2D(target_size=tuple(image_size))(x)
 
     model = Model(img_input, x)
-    weights_path = os.path.expanduser(os.path.join(
-        '~', '.keras/models/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5'))
-    model.load_weights(weights_path, by_name=True)
+
+    if weights_path is None:
+        weights_path = os.path.expanduser(os.path.join(
+            '~', '.keras/models/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'))
+        if not os.path.exists(weights_path):
+            temp_weights_path = os.path.expanduser(os.path.join(
+                '~', '.keras/models/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5'))
+            if not os.path.exists(temp_weights_path):
+                # download the model if we don't have it yet
+                temp_model = keras.applications.resnet50.ResNet50(include_top=False)
+                temp_model.save_weights(weights_path)
+                del(temp_model)
+            model.load_weights(weights_path, by_name=True, reshape=True)
+            model.save_weights(weights_path)
+        else:
+            model.load_weights(weights_path)
+    else:
+        model.load_weights(weights_path)
     return model
 
 
