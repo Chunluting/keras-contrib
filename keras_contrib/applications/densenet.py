@@ -69,7 +69,7 @@ from keras.regularizers import l2
 from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras.utils.data_utils import get_file
 from keras.engine.topology import get_source_inputs
-from keras.applications.imagenet_utils import _obtain_input_shape
+from keras_applications.imagenet_utils import _obtain_input_shape
 from keras.applications.imagenet_utils import decode_predictions
 from keras.applications.imagenet_utils import preprocess_input as _preprocess_input
 import keras.backend as K
@@ -496,7 +496,7 @@ def DenseNetImageNet264(input_shape=None,
                         pooling=None,
                         classes=1000,
                         activation='softmax'):
-    return DenseNet(input_shape, depth=201, nb_dense_block=4, growth_rate=32, nb_filter=64,
+    return DenseNet(input_shape, depth=264, nb_dense_block=4, growth_rate=32, nb_filter=64,
                     nb_layers_per_block=[6, 12, 64, 48], bottleneck=bottleneck, reduction=reduction,
                     dropout_rate=dropout_rate, weight_decay=weight_decay, subsample_initial_block=True,
                     include_top=include_top, weights=weights, input_tensor=input_tensor,
