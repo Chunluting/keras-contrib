@@ -21,7 +21,7 @@ from keras.layers import Activation
 from keras.layers import MaxPooling2D
 from keras.layers import Add
 from keras.engine import Layer
-from keras.applications.imagenet_utils import _obtain_input_shape
+from keras_applications.imagenet_utils import _obtain_input_shape
 import keras.backend as K
 import tensorflow as tf
 
